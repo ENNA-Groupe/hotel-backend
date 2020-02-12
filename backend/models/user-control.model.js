@@ -1,12 +1,21 @@
 module.exports = function (sequelize, Sequelize) {
     const Controller = sequelize.define('controller', {
-        // attributes
-        nom: {
-            type: Sequelize.STRING,
+         //cle
+         userId: {
+            type: Sequelize.INTEGER,
             allowNull: false
         },
-        operation: {
-            type: Sequelize.STRING,
+        controlId: {
+            type: Sequelize.INTEGER,
+            allowNull: false
+        },
+        donnees: {
+            type: Sequelize.BOOLEAN,
+            allowNull: false
+        },
+        corbeille: {
+            type: Sequelize.BOOLEAN,
+            allowNull: false
         },
         Ajout: {
             type: Sequelize.BOOLEAN,

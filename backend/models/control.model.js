@@ -1,9 +1,12 @@
 module.exports = function (sequelize, Sequelize) {
-    const Fonction = sequelize.define('fonction', {
+    const Control = sequelize.define('control', {
         // attributes
         nom: {
             type: Sequelize.STRING,
             allowNull: false
+        },
+        operation: {
+            type: Sequelize.STRING,
         },
         description: {
             type: Sequelize.TEXT,
@@ -14,6 +17,6 @@ module.exports = function (sequelize, Sequelize) {
     }, {
         // options
     });
-    return Fonction;
+    return Control;
 }
 

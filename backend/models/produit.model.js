@@ -15,9 +15,12 @@ module.exports = function (sequelize, Sequelize) {
             type: Sequelize.TEXT
             // allowNull defaults to true
         },
-        prixUnitaire: {
+        uniteMesure: {
             type: Sequelize.STRING,
             allowNull: false
+        },
+        prixUnitaireVente: {
+            type: Sequelize.INTEGER,
         },
         photo: {
             type: Sequelize.TEXT('big'),

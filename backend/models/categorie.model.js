@@ -4,6 +4,9 @@ module.exports = function (sequelize, Sequelize) {
         nom: {
             type: Sequelize.STRING,
             allowNull: false
+        },    
+        isIntrant: {
+            type: Sequelize.BOOLEAN,
         },
         description: {
             type: Sequelize.TEXT,

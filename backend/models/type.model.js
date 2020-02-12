@@ -8,7 +8,7 @@ module.exports = function (sequelize, Sequelize) {
         description: {
             type: Sequelize.TEXT,
         },
-        niveau: {
+        note: {
             type: Sequelize.BOOLEAN,
             allowNull: false
         },

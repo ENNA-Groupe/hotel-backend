@@ -1,26 +1,20 @@
 module.exports = function (sequelize, Sequelize) {
-    const Chambre = sequelize.define('chambre', {
+    const EntreeProduit = sequelize.define('entreeProduit', {
          //cle
-         typeId: {
+         entreeId: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        
         // attributes
-        numero: {
-            type: Sequelize.STRING,
-            allowNull: false
-        },
-         // attributes
-         prixJournalier: {
+        prixUnitaire: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        isEmpty: {
-            type: Sequelize.BOOLEAN
+        prixTotal: {
+            type: Sequelize.INTEGER,
         },
-        description: {
-            type: Sequelize.TEXT,
+        quantite: {
+            type: Sequelize.INTEGER
         },
         deletedAt: {
             type: Sequelize.DATE,
@@ -28,6 +22,5 @@ module.exports = function (sequelize, Sequelize) {
     }, {
         // options
     });
-    return Chambre;
+    return EntreeProduit;
 }
-

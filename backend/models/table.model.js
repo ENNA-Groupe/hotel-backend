@@ -1,5 +1,5 @@
 module.exports = function (sequelize, Sequelize) {
-    const Fonction = sequelize.define('fonction', {
+    const Table = sequelize.define('table', {
         // attributes
         nom: {
             type: Sequelize.STRING,
@@ -14,6 +14,5 @@ module.exports = function (sequelize, Sequelize) {
     }, {
         // options
     });
-    return Fonction;
+    return Table;
 }
-

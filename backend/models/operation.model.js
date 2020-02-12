@@ -1,33 +1,30 @@
 module.exports = function (sequelize, Sequelize) {
-    const Chambre = sequelize.define('chambre', {
+    const Operation = sequelize.define('operation', {
          //cle
-         typeId: {
+        userId: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        
         // attributes
-        numero: {
+        model: {
             type: Sequelize.STRING,
             allowNull: false
         },
-         // attributes
-         prixJournalier: {
+        idInTable: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        isEmpty: {
-            type: Sequelize.BOOLEAN
+        typeOperation: {
+            type: Sequelize.STRING,
+            allowNull: false
         },
         description: {
             type: Sequelize.TEXT,
         },
-        deletedAt: {
-            type: Sequelize.DATE,
-        }
+        
     }, {
         // options
     });
-    return Chambre;
+    return Operation;
 }
 

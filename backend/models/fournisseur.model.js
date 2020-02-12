@@ -1,11 +1,11 @@
 module.exports = function (sequelize, Sequelize) {
-    const Fonction = sequelize.define('fonction', {
+    const Fournisseur = sequelize.define('fournisseur', {
         // attributes
         nom: {
             type: Sequelize.STRING,
             allowNull: false
         },
-        description: {
+        contact: {
             type: Sequelize.TEXT,
         },
         deletedAt: {
@@ -14,6 +14,5 @@ module.exports = function (sequelize, Sequelize) {
     }, {
         // options
     });
-    return Fonction;
+    return Fournisseur;
 }
-

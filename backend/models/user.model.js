@@ -23,16 +23,19 @@ module.exports = function (sequelize, Sequelize) {
             type: Sequelize.STRING,
             allowNull: false
         },
+        salt: {
+            type: Sequelize.STRING,
+            allowNull: false
+        },
         contact: {
             type: Sequelize.STRING,
             allowNull: false
         },
-        isAdmin: {
-            type: Sequelize.BOOLEAN,
-            allowNull: false
-        },
         photo: {
             type: Sequelize.TEXT('big'),
+        },
+        isOnline: {
+            type: Sequelize.BOOLEAN,
         },
         deletedAt: {
             type: Sequelize.DATE,
