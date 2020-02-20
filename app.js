@@ -3,8 +3,8 @@ const io = require('socket.io')(server);
 io.origins('*:*');
 const Sequelize = require('sequelize');
 const crypto = require('crypto');
-const sequelize = new Sequelize('hotel', 'root', '', {
-    host: '192.168.1.70',
+const sequelize = new Sequelize('ennagroup_hotel', 'ennagroup_aro', 'azertyui', {
+    host: '1008.mochahost.com',
     // host: 'localhost',
     dialect: 'mysql',
     logging: false
