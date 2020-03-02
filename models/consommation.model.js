@@ -12,7 +12,7 @@ module.exports = function (sequelize, Sequelize) {
             type: Sequelize.INTEGER
         },
          // attributes
-         factureTotal: {
+         factureTotale: {
             type: Sequelize.INTEGER,
             allowNull: false
         },

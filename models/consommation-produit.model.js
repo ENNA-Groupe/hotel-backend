@@ -1,11 +1,6 @@
 module.exports = function (sequelize, Sequelize) {
     const ConsommationProduit = sequelize.define('consommationProduit', {
-         //cle
-        consommationId: {
-            type: Sequelize.INTEGER,
-            allowNull: false
-        },
-        produitId: {
+        prixUnitaire: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
@@ -14,10 +9,6 @@ module.exports = function (sequelize, Sequelize) {
             allowNull: false
         },
          // attributes
-         prixTotal: {
-            type: Sequelize.INTEGER,
-            allowNull: false
-        },
         deletedAt: {
             type: Sequelize.DATE,
         }

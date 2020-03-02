@@ -1,16 +1,17 @@
 module.exports = function (sequelize, Sequelize) {
-    const LocationChambre = sequelize.define('locationChambre', {
+    const LocationPropriete = sequelize.define('locationPropriete', {
          //cle
         locationId: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        prixUnitaire: {
+        proprieteId: {
             type: Sequelize.INTEGER,
             allowNull: false
         },
-        nbreJours: {
+        coutAdditionnel: {
             type: Sequelize.INTEGER,
+            allowNull: false
         },
          // attributes
         deletedAt: {
@@ -19,5 +20,5 @@ module.exports = function (sequelize, Sequelize) {
     }, {
         // options
     });
-    return LocationChambre;
+    return LocationPropriete;
 }

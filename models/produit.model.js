@@ -30,6 +30,10 @@ module.exports = function (sequelize, Sequelize) {
         }
     }, {
         // options
+        name: {
+            singular: 'product',
+            plural: 'products',
+          }
     });
     return Produit;
 }

@@ -3,9 +3,14 @@ const io = require('socket.io')(server);
 io.origins('*:*');
 const Sequelize = require('sequelize');
 const crypto = require('crypto');
-const sequelize = new Sequelize('ennagrou_hotel', 'ennagrou_aro', 'azertyui', {
-    host: 'mysql1008.mochahost.com',
-    // host: 'localhost',
+//const sequelize = new Sequelize('ennagrou_hotel', 'ennagrou_aro', 'azertyui', {
+//host: 'mysql1008.mochahost.com',
+// host: 'localhost',
+//dialect: 'mysql',
+//logging: false
+//});
+const sequelize = new Sequelize('hotel', 'root', '', {
+    host: 'localhost',
     dialect: 'mysql',
     logging: false
 });
@@ -37,8 +42,14 @@ const Sortie = require('./models/sortie.model')(sequelize, Sequelize);
 const SortieProduit = require('./models/sortie-produit.model')(sequelize, Sequelize);
 const Consommation = require('./models/consommation.model')(sequelize, Sequelize);
 const ConsommationProduit = require('./models/consommation-produit.model')(sequelize, Sequelize);
-// const Location = require('./models/location.model')(sequelize, Sequelize);
-// const LocationChambre = require('./models/location-chambre.model')(sequelize, Sequelize);
+Consommation.belongsToMany(Produit, { through: ConsommationProduit });
+Produit.belongsToMany(Consommation, { through: ConsommationProduit });
+const Location = require('./models/location.model')(sequelize, Sequelize);
+Client.hasOne(Location);
+Chambre.hasOne(Location);
+Location.belongsTo(Client);
+Location.belongsTo(Chambre);
+const LocationPropriete = require('./models/location-propriete.model')(sequelize, Sequelize);
 
 //fonctions
 function dateFormat(date) {
@@ -78,6 +89,7 @@ sequelize.authenticate().then(() => {
     sequelize.sync({ force: false }).then(() => {
         // Now the `users` table in the database corresponds to the model definition
         console.log('table created succesfull')
+
     });
 })
     .catch(err => {
@@ -501,9 +513,9 @@ io.on('connection', socket => {
         });
     });
 
- /**
-     * client METHODE
-     */
+    /**
+        * client METHODE
+        */
     //get All
     socket.on('client:all', data => {
         console.log(data);
@@ -1691,7 +1703,7 @@ io.on('connection', socket => {
                 where: { id: data.entree.id, deletedAt: null }
             }).then(res => {
                 EntreeProduit.findAll({
-                     where: { entreeId: data.entree.id, deletedAt: null }
+                    where: { entreeId: data.entree.id, deletedAt: null }
                 }).then(
                     (elems) => {
                         data.produits.forEach(prod => {
@@ -1794,9 +1806,9 @@ io.on('connection', socket => {
         });
     });
 
-     /**
-     * ENTREE
-     */
+    /**
+    * ENTREE
+    */
 
     //get All
     socket.on('sortie:all', data => {
@@ -1877,7 +1889,7 @@ io.on('connection', socket => {
                 where: { id: data.sortie.id, deletedAt: null }
             }).then(res => {
                 SortieProduit.findAll({
-                     where: { sortieId: data.sortie.id, deletedAt: null }
+                    where: { sortieId: data.sortie.id, deletedAt: null }
                 }).then(
                     (elems) => {
                         data.produits.forEach(prod => {
@@ -1980,34 +1992,39 @@ io.on('connection', socket => {
         });
     });
 
-     /**
-     * ENTREE
-     */
+    /**
+    * ENTREE
+    */
 
     //get All
     socket.on('consommation:all', data => {
         console.log(data);
         Consommation.findAll({
-            order: [
-                ['id', 'DESC']
-            ],
             where: {
-                deletedAt: null
+                deletedAt: null,
+                stoppedAt: null
             },
-            limit: 10,
-            offset: data
+            include: [{
+                model: Produit,
+                through: {
+                    attributes: ['prixUnitaire', 'quantite'],
+                    where: {
+                        deletedAt: null
+                    }
+                }
+            }]
         }).then(res => {
-            // console.log("All res:", JSON.stringify(res, null, 4));
             socket.emit('consommation:all', { data: res });
         });
     });
 
     socket.on('consommation:produits', data => {
         console.log(data);
-        consommationProduit.findAll({
+        ConsommationProduit.findAll({
             where: {
                 consommationId: data,
-                deletedAt: null
+                deletedAt: null,
+                stoppedAt: null
             }
         }).then(res => {
             // console.log("All res:", JSON.stringify(res, null, 4));
@@ -2015,6 +2032,233 @@ io.on('connection', socket => {
         });
     });
 
+    socket.on('consommation:addProduit', data => {
+        console.log(data);
+        let req1 = 'quantite + ' + data.quantite;
+        ConsommationProduit.update({ quantite: sequelize.literal(req1) }, {
+            where: {
+                consommationId: data.consommationId,
+                productId: data.productId
+            }
+        }).then(
+            (res1) => {
+                // addStock(data.productId, -data.quantite);
+                let factureTotale = data.quantite * data.prixUnitaire;
+                let req2 = 'factureTotale + ' + factureTotale;
+                Consommation.update({ factureTotale: sequelize.literal(req2) }, {
+                    where: {
+                        id: data.consommationId
+                    }
+                }).then(
+                    (res2) => {
+                        Consommation.findOne({
+                            where: { id: data.consommationId, deletedAt: null, stoppedAt: null },
+                            include: [{
+                                model: Produit,
+                                through: {
+                                    attributes: ['prixUnitaire', 'quantite'],
+                                    where: {
+                                        deletedAt: null
+                                    }
+                                }
+                            }]
+                        }).then(res3 => {
+                            socket.emit('consommation:addProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                        });
+                    }
+                );
+            }
+        );
+    });
+
+    socket.on('consommation:newProduit', data => {
+        console.log(data);
+        Consommation.update({factureTotale: data.consommation.factureTotale},
+            {
+                where: {
+                    id: data.consommation.consommationId
+                }
+            }).then(res => {
+            data.produits.forEach(prod => {
+                prod.consommationId = res.id;
+                ConsommationProduit.findOne(
+                    {
+                        where:  {
+                            consommationId: prod.consommationId,
+                            productId: prod.productId,
+                            deletedAt: null
+                        }
+                    }
+                ).then(
+                    (res2) => {
+                        if (res2) {
+                            let req1 = 'quantite + ' + prod.quantite;
+                            ConsommationProduit.update({ quantite: sequelize.literal(req1) }, {
+                                where: {
+                                    consommationId: prod.consommationId,
+                                    productId: prod.productId
+                                }
+                            })
+                        }else {
+                            ConsommationProduit.create(prod);
+                        }
+                    }
+                )
+               
+            });
+            Consommation.findOne({
+                where: { id: res.id, deletedAt: null, stoppedAt: null },
+                include: [{
+                    model: Produit,
+                    through: {
+                        attributes: ['prixUnitaire', 'quantite'],
+                        where: {
+                            deletedAt: null
+                        }
+                    }
+                }]
+            }).then(res3 => {
+                socket.emit('consommation:newProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+            });
+            // socket.emit('consommation:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+            // registrer('Consommation', res.id, 'add', socket.nom + ' a ajouté la consommation ' + res.nom).then(
+            //     () => socket.broadcast.emit('newData')
+            // );
+        });      
+    });
+
+    socket.on('consommation:client', data => {
+        console.log(data);
+        Consommation.update({ clientId: data.clientId }, {
+            where: {
+                id: data.consommationId
+            }
+        }).then(
+            (res2) => {
+                Consommation.findOne({
+                    where: { id: data.consommationId, deletedAt: null, stoppedAt: null },
+                    include: [{
+                        model: Produit,
+                        through: {
+                            attributes: ['prixUnitaire', 'quantite'],
+                            where: {
+                                deletedAt: null
+                            }
+                        }
+                    }]
+                }).then(res3 => {
+                    socket.emit('consommation:client', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                });
+            }
+        );
+    });
+
+    socket.on('consommation:removeProduit', data => {
+        console.log(data);
+        let req1 = 'quantite - ' + data.quantite;
+        ConsommationProduit.update({ quantite: sequelize.literal(req1) }, {
+            where: {
+                consommationId: data.consommationId,
+                productId: data.productId
+            }
+        }).then(
+            (res1) => {
+                // addStock(data.productId, -data.quantite);
+                let factureTotale = data.quantite * data.prixUnitaire;
+                let req2 = 'factureTotale - ' + factureTotale;
+                Consommation.update({ factureTotale: sequelize.literal(req2) }, {
+                    where: {
+                        id: data.consommationId
+                    }
+                }).then(
+                    (res2) => {
+                        Consommation.findOne({
+                            where: { id: data.consommationId, deletedAt: null, stoppedAt: null },
+                            include: [{
+                                model: Produit,
+                                through: {
+                                    attributes: ['prixUnitaire', 'quantite'],
+                                    where: {
+                                        deletedAt: null
+                                    }
+                                }
+                            }]
+                        }).then(res3 => {
+                            socket.emit('consommation:removeProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                        });
+                    }
+                );
+            }
+        );
+    });
+
+    socket.on('consommation:deleteProduit', data => {
+        console.log(data);
+        let now = new Date();
+        now = dateFormat(now) + ' ' + heureFormat(now);
+        ConsommationProduit.update({ deletedAt: now }, {
+            where: {
+                consommationId: data.consommationId,
+                productId: data.productId
+            }
+        }).then(
+            (res1) => {
+                // addStock(data.productId, -data.quantite);
+                let factureTotale = data.quantite * data.prixUnitaire;
+                let req2 = 'factureTotale - ' + factureTotale;
+                Consommation.update({ factureTotale: sequelize.literal(req2) }, {
+                    where: {
+                        id: data.consommationId
+                    }
+                }).then(
+                    (res2) => {
+                        Consommation.findOne({
+                            where: { id: data.consommationId, deletedAt: null, stoppedAt: null },
+                            include: [{
+                                model: Produit,
+                                through: {
+                                    attributes: ['prixUnitaire', 'quantite'],
+                                    where: {
+                                        deletedAt: null
+                                    }
+                                }
+                            }]
+                        }).then(res3 => {
+                            socket.emit('consommation:deleteProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                        });
+                    }
+                );
+            }
+        );
+    });
+
+    socket.on('consommation:end', data => {
+        console.log(data);
+        let now = new Date();
+        now = dateFormat(now) + ' ' + heureFormat(now);
+        Consommation.update({ stoppedAt: now }, {
+            where: {
+                id: data.consommationId
+            }
+        }).then(
+            (res2) => {
+                Consommation.findOne({
+                    where: { id: data.consommationId, deletedAt: null },
+                    include: [{
+                        model: Produit,
+                        through: {
+                            attributes: ['prixUnitaire', 'quantite'],
+                            where: {
+                                deletedAt: null
+                            }
+                        }
+                    }]
+                }).then(res3 => {
+                    socket.emit('consommation:end', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                });
+            }
+        );
+    });
 
     //get deleteditems
     socket.on('consommation:trash', data => {
@@ -2034,15 +2278,24 @@ io.on('connection', socket => {
     //add item
     socket.on('consommation:add', data => {
         console.log(data);
-        data.consommation.factureTotal = data.produits.reduce((a,b)=> {a+b.prixUnitaire*b.quantite},0);
         Consommation.create(data.consommation).then(res => {
             data.produits.forEach(prod => {
                 prod.consommationId = res.id;
-                consommationProduit.create(prod).then(
-                    (x) => {
-                        addStock(prod.produitId, -prod.quantite);
+                ConsommationProduit.create(prod);
+            });
+            Consommation.findOne({
+                where: { id: res.id, deletedAt: null, stoppedAt: null },
+                include: [{
+                    model: Produit,
+                    through: {
+                        attributes: ['prixUnitaire', 'quantite'],
+                        where: {
+                            deletedAt: null
+                        }
                     }
-                );
+                }]
+            }).then(res3 => {
+                socket.emit('consommation:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
             });
             socket.emit('consommation:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
             registrer('Consommation', res.id, 'add', socket.nom + ' a ajouté la consommation ' + res.nom).then(
@@ -2064,7 +2317,7 @@ io.on('connection', socket => {
                 where: { id: data.consommation.id, deletedAt: null }
             }).then(res => {
                 ConsommationProduit.findAll({
-                     where: { consommationId: data.consommation.id, deletedAt: null }
+                    where: { consommationId: data.consommation.id, deletedAt: null }
                 }).then(
                     (elems) => {
                         data.produits.forEach(prod => {
@@ -2166,6 +2419,124 @@ io.on('connection', socket => {
             });
         });
     });
+
+/**
+ * LOCATION
+ */
+
+    socket.on('location:all', data => {
+        console.log(data);
+        Location.findAll({
+            where: {
+                deletedAt: null
+            },
+        //     include: [{
+        //         model: Client,
+        //         where: {
+        //             deletedAt: null
+        //         }
+        //     },
+        //     {
+        //         model: Chambre,
+        //         where: {
+        //             deletedAt: null
+        //         }
+        //     }
+        // ]
+        }).then(res => {
+            // console.log("All res:", JSON.stringify(res, null, 4));
+            socket.emit('location:all', { data: res });
+        });
+    });
+
+
+    //get deleteditems
+    socket.on('location:trash', data => {
+        console.log(data);
+        Location.findAll({
+            where: {
+                deletedAt: {
+                    [Op.ne]: null
+                }
+            }
+        }).then(res => {
+            // console.log("All res:", JSON.stringify(res, null, 4));
+            socket.emit('location:trash', { data: res });
+        });
+    });
+
+    //add item
+    socket.on('location:add', data => {
+        console.log(data);
+        Location.create(data).then(res => {
+            socket.emit('location:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+            registrer('Location', res.id, 'add', socket.nom + ' a ajouté la location' + res.nom).then(
+                () => socket.broadcast.emit('newData')
+            );
+        });
+    });
+
+    //edit item
+    socket.on('location:edit', data => {
+        console.log(data);
+        Location.update(data, {
+            where: {
+                id: data.id
+            }
+        }).then(() => {
+            Location.findOne({
+                where: { id: data.id }
+            }).then(res => {
+                socket.emit('location:edit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Location', res.id, 'edit', socket.nom + ' a modifié les informations de la location' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+        });
+    });
+
+    //delete item
+    socket.on('location:delete', id => {
+        console.log(id);
+        let now = new Date();
+        now = dateFormat(now) + ' ' + heureFormat(now);
+        Location.update({ deletedAt: now }, {
+            where: {
+                id: id
+            }
+        }).then(() => {
+            Location.findOne({
+                where: { id: id }
+            }).then(res => {
+                socket.emit('location:delete', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Location', res.id, 'delete', socket.nom + ' a supprimé  la location ' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+
+        });
+    });
+
+    //restore item
+    socket.on('location:restore', id => {
+        console.log(id);
+        Location.update({ deletedAt: null }, {
+            where: {
+                id: id
+            }
+        }).then(() => {
+            Location.findOne({
+                where: { id: id }
+            }).then(res => {
+                socket.emit('location:restore', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Location', res.id, 'restore', socket.nom + ' a restauré la location ' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+        });
+    });
+    
+
     /**
      * DECONNEXION
      */
