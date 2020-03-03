@@ -13,6 +13,10 @@ module.exports = function (sequelize, Sequelize) {
             type: Sequelize.INTEGER,
             allowNull: false
         },
+        isChecked: {
+            type: Sequelize.INTEGER,
+            allowNull: false
+        },
          // attributes
         deletedAt: {
             type: Sequelize.DATE,

@@ -5,6 +5,14 @@ module.exports = function (sequelize, Sequelize) {
             type: Sequelize.INTEGER,
             allowNull: false
         },
+        mesureId: {
+            type: Sequelize.INTEGER,
+            allowNull: false
+        },
+        contenanceId: {
+            type: Sequelize.INTEGER,
+            allowNull: false
+        },
         
         // attributes
         nom: {
@@ -12,7 +20,7 @@ module.exports = function (sequelize, Sequelize) {
             allowNull: false
         },
          // attributes
-         uniteMesure: {
+         contenance: {
             type: Sequelize.STRING,
             allowNull: false
         },

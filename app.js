@@ -3,6 +3,9 @@ const io = require('socket.io')(server);
 io.origins('*:*');
 const Sequelize = require('sequelize');
 const crypto = require('crypto');
+const moment = require('moment');
+const cron = require('node-cron');
+
 //const sequelize = new Sequelize('ennagrou_hotel', 'ennagrou_aro', 'azertyui', {
 //host: 'mysql1008.mochahost.com',
 // host: 'localhost',
@@ -42,6 +45,8 @@ const Sortie = require('./models/sortie.model')(sequelize, Sequelize);
 const SortieProduit = require('./models/sortie-produit.model')(sequelize, Sequelize);
 const Consommation = require('./models/consommation.model')(sequelize, Sequelize);
 const ConsommationProduit = require('./models/consommation-produit.model')(sequelize, Sequelize);
+const Mesure = require('./models/mesure.model')(sequelize, Sequelize);
+
 Consommation.belongsToMany(Produit, { through: ConsommationProduit });
 Produit.belongsToMany(Consommation, { through: ConsommationProduit });
 const Location = require('./models/location.model')(sequelize, Sequelize);
@@ -95,6 +100,43 @@ sequelize.authenticate().then(() => {
     .catch(err => {
         console.error('Unable to connect to the database:', err);
     });
+
+
+// let nbreJours = moment("2019-12-04 10:08:05").fromNow();
+// nbreJours = moment(nbreJours).format() 
+
+function calculNbreJours() {
+    Location.findAll({
+        where: {
+            stoppedAt: null,
+            deletedAt: null,
+            // where: sequelize.where(sequelize.fn('date', sequelize.col('updatedAt')), '<', today)
+        }
+    }).then(
+        (res) => {
+            // console.log(res);
+            res.forEach(item => {
+               let nbreJours = moment().diff(item.createdAt, "days");
+                let montantTotal = nbreJours * item.prixUnitaire
+                console.log(nbreJours);
+                Location.update({nbreJours: nbreJours, montantTotal: montantTotal}, {
+                    where: {
+                        id: item.id
+                    }
+                });
+            })
+        }
+    );
+}
+
+
+calculNbreJours();
+cron.schedule('0 0 * * *', () => {
+    console.log('Runing a job at 00:00');
+    this.calculNbreJours();
+}, {
+    scheduled: true,
+});
 
 io.on('connection', socket => {
     Operation.findOne({ order: [['id', 'DESC']] }).then(
@@ -615,6 +657,110 @@ io.on('connection', socket => {
             });
         });
     });
+
+    /**
+     * MESURE METHODE
+     */
+    //get All
+    socket.on('mesure:all', data => {
+        console.log(data);
+        Mesure.findAll({
+            where: {
+                deletedAt: null
+            }
+        }).then(res => {
+            // console.log("All res:", JSON.stringify(res, null, 4));
+            socket.emit('mesure:all', { data: res });
+        });
+    });
+
+
+    //get deleteditems
+    socket.on('mesure:trash', data => {
+        console.log(data);
+        Mesure.findAll({
+            where: {
+                deletedAt: {
+                    [Op.ne]: null
+                }
+            }
+        }).then(res => {
+            // console.log("All res:", JSON.stringify(res, null, 4));
+            socket.emit('mesure:trash', { data: res });
+        });
+    });
+
+    //add item
+    socket.on('mesure:add', data => {
+        console.log(data);
+        Mesure.create(data).then(res => {
+            socket.emit('mesure:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+            registrer('Mesure', res.id, 'add', socket.nom + ' a ajouté la Mesure ' + res.nom).then(
+                () => socket.broadcast.emit('newData')
+            );
+        });
+    });
+
+    //edit item
+    socket.on('mesure:edit', data => {
+        console.log(data);
+        Mesure.update(data, {
+            where: {
+                id: data.id
+            }
+        }).then(() => {
+            Mesure.findOne({
+                where: { id: data.id }
+            }).then(res => {
+                socket.emit('mesure:edit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Mesure', res.id, 'edit', socket.nom + ' a modifié les informations de la Mesure ' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+        });
+    });
+
+    //delete item
+    socket.on('mesure:delete', id => {
+        console.log(id);
+        let now = new Date();
+        now = dateFormat(now) + ' ' + heureFormat(now);
+        Mesure.update({ deletedAt: now }, {
+            where: {
+                id: id
+            }
+        }).then(() => {
+            Mesure.findOne({
+                where: { id: id }
+            }).then(res => {
+                socket.emit('mesure:delete', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Mesure', res.id, 'delete', socket.nom + ' a supprimé  la Mesure ' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+
+        });
+    });
+
+    //restore item
+    socket.on('mesure:restore', id => {
+        console.log(id);
+        Mesure.update({ deletedAt: null }, {
+            where: {
+                id: id
+            }
+        }).then(() => {
+            Mesure.findOne({
+                where: { id: id }
+            }).then(res => {
+                socket.emit('mesure:restore', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                registrer('Mesure', res.id, 'restore', socket.nom + ' a restauré la mesure ' + res.nom).then(
+                    () => socket.broadcast.emit('newData')
+                );
+            });
+        });
+    });
+
     /**
      * CATEGORIE METHODE
      */
@@ -2073,58 +2219,58 @@ io.on('connection', socket => {
 
     socket.on('consommation:newProduit', data => {
         console.log(data);
-        Consommation.update({factureTotale: data.consommation.factureTotale},
+        Consommation.update({ factureTotale: data.consommation.factureTotale },
             {
                 where: {
                     id: data.consommation.consommationId
                 }
             }).then(res => {
-            data.produits.forEach(prod => {
-                prod.consommationId = res.id;
-                ConsommationProduit.findOne(
-                    {
-                        where:  {
-                            consommationId: prod.consommationId,
-                            productId: prod.productId,
-                            deletedAt: null
+                data.produits.forEach(prod => {
+                    prod.consommationId = res.id;
+                    ConsommationProduit.findOne(
+                        {
+                            where: {
+                                consommationId: prod.consommationId,
+                                productId: prod.productId,
+                                deletedAt: null
+                            }
                         }
-                    }
-                ).then(
-                    (res2) => {
-                        if (res2) {
-                            let req1 = 'quantite + ' + prod.quantite;
-                            ConsommationProduit.update({ quantite: sequelize.literal(req1) }, {
-                                where: {
-                                    consommationId: prod.consommationId,
-                                    productId: prod.productId
-                                }
-                            })
-                        }else {
-                            ConsommationProduit.create(prod);
+                    ).then(
+                        (res2) => {
+                            if (res2) {
+                                let req1 = 'quantite + ' + prod.quantite;
+                                ConsommationProduit.update({ quantite: sequelize.literal(req1) }, {
+                                    where: {
+                                        consommationId: prod.consommationId,
+                                        productId: prod.productId
+                                    }
+                                })
+                            } else {
+                                ConsommationProduit.create(prod);
+                            }
                         }
-                    }
-                )
-               
+                    )
+
+                });
+                Consommation.findOne({
+                    where: { id: res.id, deletedAt: null, stoppedAt: null },
+                    include: [{
+                        model: Produit,
+                        through: {
+                            attributes: ['prixUnitaire', 'quantite'],
+                            where: {
+                                deletedAt: null
+                            }
+                        }
+                    }]
+                }).then(res3 => {
+                    socket.emit('consommation:newProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
+                });
+                // socket.emit('consommation:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
+                // registrer('Consommation', res.id, 'add', socket.nom + ' a ajouté la consommation ' + res.nom).then(
+                //     () => socket.broadcast.emit('newData')
+                // );
             });
-            Consommation.findOne({
-                where: { id: res.id, deletedAt: null, stoppedAt: null },
-                include: [{
-                    model: Produit,
-                    through: {
-                        attributes: ['prixUnitaire', 'quantite'],
-                        where: {
-                            deletedAt: null
-                        }
-                    }
-                }]
-            }).then(res3 => {
-                socket.emit('consommation:newProduit', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res3 })
-            });
-            // socket.emit('consommation:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
-            // registrer('Consommation', res.id, 'add', socket.nom + ' a ajouté la consommation ' + res.nom).then(
-            //     () => socket.broadcast.emit('newData')
-            // );
-        });      
     });
 
     socket.on('consommation:client', data => {
@@ -2234,8 +2380,9 @@ io.on('connection', socket => {
 
     socket.on('consommation:end', data => {
         console.log(data);
-        let now = new Date();
-        now = dateFormat(now) + ' ' + heureFormat(now);
+        // let now = new Date();
+        // now = dateFormat(now) + ' ' + heureFormat(now);
+        let now = null;
         Consommation.update({ stoppedAt: now }, {
             where: {
                 id: data.consommationId
@@ -2420,9 +2567,9 @@ io.on('connection', socket => {
         });
     });
 
-/**
- * LOCATION
- */
+    /**
+     * LOCATION
+     */
 
     socket.on('location:all', data => {
         console.log(data);
@@ -2430,19 +2577,19 @@ io.on('connection', socket => {
             where: {
                 deletedAt: null
             },
-        //     include: [{
-        //         model: Client,
-        //         where: {
-        //             deletedAt: null
-        //         }
-        //     },
-        //     {
-        //         model: Chambre,
-        //         where: {
-        //             deletedAt: null
-        //         }
-        //     }
-        // ]
+            //     include: [{
+            //         model: Client,
+            //         where: {
+            //             deletedAt: null
+            //         }
+            //     },
+            //     {
+            //         model: Chambre,
+            //         where: {
+            //             deletedAt: null
+            //         }
+            //     }
+            // ]
         }).then(res => {
             // console.log("All res:", JSON.stringify(res, null, 4));
             socket.emit('location:all', { data: res });
@@ -2465,13 +2612,36 @@ io.on('connection', socket => {
         });
     });
 
+    socket.on('location:proprietes', data => {
+        console.log(data);
+        LocationPropriete.findAll({
+            where: {
+                locationId: data.locationId
+            }
+        }).then(
+            res => {
+                socket.emit('location:proprietes', { data: res });
+            }
+        );
+    });
+
     //add item
     socket.on('location:add', data => {
         console.log(data);
-        Location.create(data).then(res => {
+        data.nbreJours = 0;
+        data.montantTotal = data.prixJournalier;
+        Location.create(data.location).then(res => {
             socket.emit('location:add', { infos: { type: 'success', message: 'Operation effectuée avec success' }, data: res });
             registrer('Location', res.id, 'add', socket.nom + ' a ajouté la location' + res.nom).then(
                 () => socket.broadcast.emit('newData')
+            );
+            data.options.forEach(
+                option => LocationPropriete.create({
+                    proprieteId: option.id,
+                    locationId: res.id,
+                    coutAdditionnel: option.coutAdditionnel,
+                    isChecked: option.isChecked
+                })
             );
         });
     });
@@ -2535,7 +2705,7 @@ io.on('connection', socket => {
             });
         });
     });
-    
+
 
     /**
      * DECONNEXION
